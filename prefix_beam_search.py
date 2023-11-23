@@ -8,6 +8,7 @@ from transformers import pipeline, Wav2Vec2Processor
 from datasets import Dataset, Audio
 from evaluate import load
 import torch
+import sys
 
 from argparse import ArgumentParser
 
@@ -136,3 +137,11 @@ if __name__ == '__main__':
     parser.add_argument('WAV', 'audio file to decode')
     parser.add_argument('ASR', 'asr model path')
     parser.add_argument('LM', 'lm model path')
+	parser.add_argument('OUT', 'path to save results to')
+
+	args = parser.parse_args(sys.argv)
+
+	out = decode_audio(args.WAV, args.ASR, args.LM)
+	with open(args.OUT, 'w') as f:
+		f.write(str(out))
+	
