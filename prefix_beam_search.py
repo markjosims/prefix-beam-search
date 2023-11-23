@@ -134,10 +134,10 @@ def decode_audio(
 
 if __name__ == '__main__':
     parser = ArgumentParser('Beam search runner')
-    parser.add_argument('WAV', 'audio file to decode')
-    parser.add_argument('ASR', 'asr model path')
-    parser.add_argument('LM', 'lm model path')
-    parser.add_argument('OUT', 'path to save results to')
+    parser.add_argument('WAV', help='audio file to decode')
+    parser.add_argument('ASR', help='asr model path')
+    parser.add_argument('LM', help='lm model path')
+    parser.add_argument('OUT', help='path to save results to')
 
     args = parser.parse_args(sys.argv)
 
