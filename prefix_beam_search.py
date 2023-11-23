@@ -12,6 +12,8 @@ import sys
 
 from argparse import ArgumentParser
 
+pplx = load('perplexity')
+
 def prefix_beam_search(ctc, lm=None, k=25, alpha=0.30, beta=5, prune=0.001):
     """
     Performs prefix beam search on the output of a CTC network.
@@ -91,8 +93,6 @@ def prefix_beam_search(ctc, lm=None, k=25, alpha=0.30, beta=5, prune=0.001):
         # END: STEP 7
 
     return A_prev[0].strip('>')
-
-pplx = load('perplexity')
 
 def wav_to_hf_audio(file: Union[str, Sequence[str]]) -> Dataset:
     if type(file) is str:
