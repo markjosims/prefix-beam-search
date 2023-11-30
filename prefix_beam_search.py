@@ -150,19 +150,6 @@ def decode_audio(
         'beam_search': beam_search_out,
     }
 
-if __name__ == '__main__':
-    parser = ArgumentParser('Beam search runner')
-    parser.add_argument('WAV', help='audio file to decode')
-    parser.add_argument('ASR', help='asr model path')
-    parser.add_argument('LM', help='lm model path')
-    parser.add_argument('OUT', help='path to save results to')
-
-    args = parser.parse_args(sys.argv)
-
-    out = decode_audio(args.WAV, args.ASR, args.LM)
-    with open(args.OUT, 'w') as f:
-        f.write(str(out))
-
 def toy_case():
     ctc= np.array([
         [0.4,  0.4,  0.2,  0. ,  0. ,  0. ],
@@ -179,4 +166,17 @@ def toy_case():
     scores = {'bac': 0.9, 'bcc': 0.1, 'baa': 0.5}
     lm = lambda s: scores.get(s, 0.1)
     print(prefix_beam_search(ctc, lm, alphabet))
+
+if __name__ == '__main__':
+    parser = ArgumentParser('Beam search runner')
+    parser.add_argument('WAV', help='audio file to decode')
+    parser.add_argument('ASR', help='asr model path')
+    parser.add_argument('LM', help='lm model path')
+    parser.add_argument('OUT', help='path to save results to')
+
+    args = parser.parse_args(sys.argv)
+
+    out = decode_audio(args.WAV, args.ASR, args.LM)
+    with open(args.OUT, 'w') as f:
+        f.write(str(out))
     
