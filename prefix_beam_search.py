@@ -3,7 +3,7 @@ from string import ascii_lowercase
 import re
 import numpy as np
 
-from typing import Dict, Sequence, Union
+from typing import Dict, Sequence, Union, Optional, Any, List, Callable, Mapping
 from transformers import pipeline, Wav2Vec2Processor
 from datasets import Dataset, Audio
 from evaluate import load
@@ -14,7 +14,18 @@ from argparse import ArgumentParser
 
 pplx = load('perplexity')
 
-def prefix_beam_search(ctc, lm=None, k=25, alpha=0.30, beta=5, prune=0.001):
+def prefix_beam_search(
+        ctc: Sequence[Sequence[float]],
+        lm: Optional[Callable]=None,
+        alphabet: Optional[Mapping]=None,
+        blank: str = '%',
+        space: str = ' ',
+        eos: str = '>',
+        k: int = 25,
+        alpha: float = 0.30,
+        beta: int = 5,
+        prune: float = 0.001
+    ) -> str:
     """
     Performs prefix beam search on the output of a CTC network.
 
@@ -32,7 +43,11 @@ def prefix_beam_search(ctc, lm=None, k=25, alpha=0.30, beta=5, prune=0.001):
 
     lm = (lambda l: 1) if lm is None else lm # if no LM is provided, just set to function returning 1
     W = lambda l: re.findall(r'\w+[\s|>]', l)
-    alphabet = list(ascii_lowercase) + [' ', '>', '%']
+    if not alphabet:
+        alphabet = {c:i for i, c in enumerate(ascii_lowercase)}
+        for spec_tok in [blank, space, eos]:
+            alphabet[spec_tok] = len(alphabet)
+    reverse_alphabet = {v:k for k, v in alphabet.items()}
     F = ctc.shape[1]
     ctc = np.vstack((np.zeros(F), ctc)) # just add an imaginative zero'th step (will make indexing more intuitive)
     T = ctc.shape[0]
@@ -40,28 +55,28 @@ def prefix_beam_search(ctc, lm=None, k=25, alpha=0.30, beta=5, prune=0.001):
     # STEP 1: Initiliazation
     O = ''
     Pb, Pnb = defaultdict(Counter), defaultdict(Counter)
-    Pb[0][O] = 1
-    Pnb[0][O] = 0
+    Pb[0][O] = 1 # probability of prefix ending w/ blank
+    Pnb[0][O] = 0 # probability of prefix ending w/ non-blank
     A_prev = [O]
     # END: STEP 1
 
     # STEP 2: Iterations and pruning
     for t in range(1, T):
-        pruned_alphabet = [alphabet[i] for i in np.where(ctc[t] > prune)[0]]
+        pruned_alphabet = {reverse_alphabet[i]: i for i in np.where(ctc[t] > prune)[0]}
         for l in A_prev:
             
-            if len(l) > 0 and l[-1] == '>':
+            if len(l) > 0 and l[-1] == eos:
                 Pb[t][l] = Pb[t - 1][l]
                 Pnb[t][l] = Pnb[t - 1][l]
                 continue  
 
             for c in pruned_alphabet:
-                c_ix = alphabet.index(c)
+                c_ix = alphabet[c]
                 # END: STEP 2
                 
                 # STEP 3: “Extending” with a blank
-                if c == '%':
-                    Pb[t][l] += ctc[t][-1] * (Pb[t - 1][l] + Pnb[t - 1][l])
+                if c == blank:
+                    Pb[t][l] += ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
                 # END: STEP 3
                 
                 # STEP 4: Extending with the end character
@@ -73,11 +88,13 @@ def prefix_beam_search(ctc, lm=None, k=25, alpha=0.30, beta=5, prune=0.001):
                 # END: STEP 4
 
                     # STEP 5: Extending with any other non-blank character and LM constraints
-                    elif len(l.replace(' ', '')) > 0 and c in (' ', '>'):
-                        lm_prob = lm(l_plus.strip(' >')) ** alpha
+                    else:#elif len(l.replace(space, '')) > 0 and c in (space, eos):
+                    # comment out condition bc we don't want to only run lm on full words
+                    # for a char-based model
+                        lm_prob = lm(l_plus.strip(space+eos)) ** alpha
                         Pnb[t][l_plus] += lm_prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
-                    else:
-                        Pnb[t][l_plus] += ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
+                    # else:
+                    #     Pnb[t][l_plus] += ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
                     # END: STEP 5
 
                     # STEP 6: Make use of discarded prefixes
@@ -92,7 +109,7 @@ def prefix_beam_search(ctc, lm=None, k=25, alpha=0.30, beta=5, prune=0.001):
         A_prev = sorted(A_next, key=sorter, reverse=True)[:k]
         # END: STEP 7
 
-    return A_prev[0].strip('>')
+    return A_prev[0].strip(eos)
 
 def wav_to_hf_audio(file: Union[str, Sequence[str]]) -> Dataset:
     if type(file) is str:
@@ -102,7 +119,8 @@ def wav_to_hf_audio(file: Union[str, Sequence[str]]) -> Dataset:
     return ds
 
 def decode_audio(
-        file: Union[str, Sequence[str]],
+        file: Union[str, Sequence[str], None],
+        input_dict: Optional[Dict[str, Any]],
         asr: str,
         lm: str,
 ) -> Dict[str, str]:
@@ -144,4 +162,21 @@ if __name__ == '__main__':
     out = decode_audio(args.WAV, args.ASR, args.LM)
     with open(args.OUT, 'w') as f:
         f.write(str(out))
+
+def toy_case():
+    ctc= np.array([
+        [0.4,  0.4,  0.2,  0. ,  0. ,  0. ],
+        [0.2,  0.2,  0.2,  0. ,  0. ,  0.4],
+        [0.4,  0.4,  0.2,  0. ,  0. ,  0. ],
+        [0.2,  0.2,  0.2,  0. ,  0. ,  0.4],
+        [0.35, 0.35, 0.3,  0. ,  0. ,  0. ],
+        [0.2, 0.2, 0.2, 0. , 0. , 0.4],
+        [0.2, 0.2, 0.2, 0. , 0. , 0.4],
+        [0.2, 0.2, 0.2, 0. , 0. , 0.4],
+        [0.4, 0.4, 0.2, 0. , 0. , 0. ]
+    ])
+    alphabet = {'b': 0, 'a': 1, 'c': 2, ' ': 3, '>': 4, '%': 5}
+    scores = {'bac': 0.9, 'bcc': 0.1, 'baa': 0.5}
+    lm = lambda s: scores.get(s, 0.1)
+    print(prefix_beam_search(ctc, lm, alphabet))
     
