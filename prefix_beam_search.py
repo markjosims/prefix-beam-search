@@ -149,7 +149,7 @@ def decode_audio(
 
     return {
         'ctc': ctc_out,
-        'beam_search': beam_search_out,
+        'beam_search': beam_search_out['label'],
     }
 
 def toy_case():
