@@ -120,9 +120,9 @@ def wav_to_hf_audio(file: Union[str, Sequence[str]]) -> Dataset:
 
 def decode_audio(
         file: Union[str, Sequence[str], None],
-        input_dict: Optional[Dict[str, Any]],
         asr: str,
         lm: str,
+        input_dict: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, str]:
     if type(file) is str:
         file = [file,]
@@ -167,16 +167,20 @@ def toy_case():
     lm = lambda s: scores.get(s, 0.1)
     print(prefix_beam_search(ctc, lm, alphabet))
 
-if __name__ == '__main__':
+def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = ArgumentParser('Beam search runner')
     parser.add_argument('WAV', help='audio file to decode')
     parser.add_argument('ASR', help='asr model path')
     parser.add_argument('LM', help='lm model path')
     parser.add_argument('OUT', help='path to save results to')
 
-    args = parser.parse_args(sys.argv)
+    args = parser.parse_args(argv)
 
     out = decode_audio(args.WAV, args.ASR, args.LM)
     with open(args.OUT, 'w') as f:
         f.write(str(out))
+
+if __name__ == '__main__':
+    main()
+
     
