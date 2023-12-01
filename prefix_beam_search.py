@@ -9,6 +9,7 @@ from datasets import Dataset, Audio
 from evaluate import load
 import torch
 import sys
+import json
 
 from argparse import ArgumentParser
 
@@ -172,11 +173,11 @@ if __name__ == '__main__':
     parser.add_argument('WAV', help='audio file to decode')
     parser.add_argument('ASR', help='asr model path')
     parser.add_argument('LM', help='lm model path')
-    parser.add_argument('OUT', help='path to save results to')
+    parser.add_argument('OUT', help='JSON path to save results to')
 
     args = parser.parse_args(sys.argv)
 
     out = decode_audio(args.WAV, args.ASR, args.LM)
     with open(args.OUT, 'w') as f:
-        f.write(str(out))
+        json.dump(out, f)
     
