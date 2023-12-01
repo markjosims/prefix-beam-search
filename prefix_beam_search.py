@@ -127,9 +127,9 @@ def decode_audio(
 ) -> Dict[str, str]:
     if type(file) is str:
         file = [file,]
-    pipe = pipeline('automatic-speech-recognition', asr)
-    print('Running ASR pipeline on audio file...')
-    ctc_out = pipe(file)
+    # pipe = pipeline('automatic-speech-recognition', asr)
+    # print('Running ASR pipeline on audio file...')
+    # ctc_out = pipe(file)
 
     lm_funct = lambda s: pplx(predictions=[s,], model_id=lm)['mean_perplexity']
     audio_ds = wav_to_hf_audio(file)
@@ -142,17 +142,22 @@ def decode_audio(
             logits = asr_model(input_dict.input_values).logits
         return logits
     
-    def map_beam_search(row: dict):
+    def map_labels(row: dict):
         audio = row['audio']['array']
         ctc_logits = get_ctc_logits(audio)
-        return {'label': prefix_beam_search(ctc_logits, lm_funct)}
+        beam_search_label = prefix_beam_search(ctc_logits, lm_funct)
+        ctc_label = processor.tokenizer.decode(ctc_logits)
+        return {
+            'beam_search': beam_search_label,
+            'ctc': ctc_label,
+        }
 
     print('Running beam search on file...')
-    beam_search_out = audio_ds.map(map_beam_search, remove_columns=['audio'])
+    labels = audio_ds.map(map_labels, remove_columns=['audio'])
 
     return {
-        'ctc': ctc_out,
-        'beam_search': beam_search_out['label'],
+        'ctc': labels['ctc'],
+        'beam_search': labels['beam_search'],
     }
 
 def toy_case():
