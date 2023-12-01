@@ -138,7 +138,8 @@ def decode_audio(
     asr_model = Wav2Vec2ForCTC.from_pretrained(asr)
     def get_ctc_logits(audio: torch.tensor):
         input_dict = processor(audio, return_tensors="pt", padding=True, sampling_rate=16000)
-        logits = asr_model(input_dict.input_values).logits
+        with torch.no_grad():
+            logits = asr_model(input_dict.input_values).logits
         return logits
     
     def map_beam_search(row: dict):
