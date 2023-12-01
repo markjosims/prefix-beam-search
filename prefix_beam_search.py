@@ -128,10 +128,12 @@ def decode_audio(
     if type(file) is str:
         file = [file,]
     pipe = pipeline('automatic-speech-recognition', asr)
+    print('Running ASR pipeline on audio file...')
     ctc_out = pipe(file)
 
     lm_funct = lambda s: pplx(predictions=[s,], model_id=lm)['mean_perplexity']
     audio_ds = wav_to_hf_audio(file)
+    print("Loading ASR model and processor...")
     processor = Wav2Vec2Processor.from_pretrained(asr)
     asr_model = Wav2Vec2ForCTC.from_pretrained(asr)
     def get_ctc_logits(audio: torch.tensor):
@@ -144,7 +146,7 @@ def decode_audio(
         ctc_logits = get_ctc_logits(audio)
         return {'label': prefix_beam_search(ctc_logits, lm_funct)}
 
-
+    print('Running beam search on file...')
     beam_search_out = audio_ds.map(map_beam_search, remove_columns=['audio'])
 
     return {
