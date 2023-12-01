@@ -150,7 +150,8 @@ def decode_audio(
     def map_labels(row: dict):
         audio = row['audio']['array']
         ctc_logits = get_ctc_logits(audio)
-        beam_search_label = prefix_beam_search(ctc_logits, lm_funct)
+        for example in ctc_logits:
+            beam_search_label = prefix_beam_search(example, lm_funct)
         ctc_label = tokenizer.decode(ctc_logits)
         return {
             'beam_search': beam_search_label,
