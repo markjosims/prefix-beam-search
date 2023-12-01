@@ -15,6 +15,13 @@ from argparse import ArgumentParser
 
 pplx = load('perplexity')
 
+class Memo(dict):
+    def __init__(self, factory):
+         self.factory = factory
+    def __missing__(self, key):
+         self[key] = self.factory(key)
+         return self[key]
+
 def prefix_beam_search(
         ctc: Sequence[Sequence[float]],
         lm: Optional[Callable]=None,
@@ -42,8 +49,8 @@ def prefix_beam_search(
         string: The decoded CTC output.
     """
 
-    lm = (lambda l: 1) if lm is None else lm # if no LM is provided, just set to function returning 1
-    lm_memo = defaultdict(lm) # memoize lm output
+    lm = (lambda _: 1) if lm is None else lm # if no LM is provided, just set to function returning 1
+    lm_memo = Memo(lm)
     W = lambda l: re.findall(r'\w+[\s|>]', l)
     if not alphabet:
         alphabet = {c:i for i, c in enumerate(ascii_lowercase)}
