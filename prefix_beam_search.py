@@ -43,6 +43,7 @@ def prefix_beam_search(
     """
 
     lm = (lambda l: 1) if lm is None else lm # if no LM is provided, just set to function returning 1
+    lm_memo = defaultdict(lm) # memoize lm output
     W = lambda l: re.findall(r'\w+[\s|>]', l)
     if not alphabet:
         alphabet = {c:i for i, c in enumerate(ascii_lowercase)}
@@ -92,7 +93,7 @@ def prefix_beam_search(
                     else:#elif len(l.replace(space, '')) > 0 and c in (space, eos):
                     # comment out condition bc we don't want to only run lm on full words
                     # for a char-based model
-                        lm_prob = lm(l_plus.strip(space+eos)) ** alpha
+                        lm_prob = lm_memo[l_plus.strip(space+eos)] ** alpha
                         Pnb[t][l_plus] += lm_prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
                     # else:
                     #     Pnb[t][l_plus] += ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
@@ -135,7 +136,11 @@ def decode_audio(
     audio_ds = wav_to_hf_audio(file)
     print("Loading ASR model and processor...")
     processor = Wav2Vec2Processor.from_pretrained(asr)
+    tokenizer=processor.tokenizer
     asr_model = Wav2Vec2ForCTC.from_pretrained(asr)
+    alphabet = tokenizer.vocab
+    alphabet[tokenizer.pad_token] = tokenizer.pad_token_id
+    alphabet[' '] = tokenizer.word_delimiter_token_id
     def get_ctc_logits(audio: torch.tensor):
         input_dict = processor(audio, return_tensors="pt", padding=True, sampling_rate=16000)
         with torch.no_grad():
@@ -146,7 +151,7 @@ def decode_audio(
         audio = row['audio']['array']
         ctc_logits = get_ctc_logits(audio)
         beam_search_label = prefix_beam_search(ctc_logits, lm_funct)
-        ctc_label = processor.tokenizer.decode(ctc_logits)
+        ctc_label = tokenizer.decode(ctc_logits)
         return {
             'beam_search': beam_search_label,
             'ctc': ctc_label,
