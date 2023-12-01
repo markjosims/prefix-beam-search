@@ -4,7 +4,7 @@ import re
 import numpy as np
 
 from typing import Dict, Sequence, Union, Optional, Any, List, Callable, Mapping
-from transformers import pipeline, Wav2Vec2Processor
+from transformers import pipeline, Wav2Vec2Processor, Wav2Vec2ForCTC
 from datasets import Dataset, Audio
 from evaluate import load
 import torch
@@ -133,9 +133,10 @@ def decode_audio(
     lm_funct = lambda s: pplx(predictions=[s,], model_id=lm)['mean_perplexity']
     audio_ds = wav_to_hf_audio(file)
     processor = Wav2Vec2Processor.from_pretrained(asr)
+    asr_model = Wav2Vec2ForCTC.from_pretrained(asr)
     def get_ctc_logits(audio: torch.tensor):
         input_dict = processor(audio, return_tensors="pt", padding=True, sampling_rate=16000)
-        logits = asr(input_dict.input_values).logits
+        logits = asr_model(input_dict.input_values).logits
         return logits
     
     def map_beam_search(row: dict):
