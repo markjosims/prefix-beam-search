@@ -139,7 +139,7 @@ def decode_audio(
         return logits
     
     def map_beam_search(row: dict):
-        audio = row['audio']
+        audio = row['audio']['array']
         ctc_logits = get_ctc_logits(audio)
         return {'label': prefix_beam_search(ctc_logits, lm_funct)}
 
