@@ -151,7 +151,13 @@ def decode_audio(
         audio = row['audio']['array']
         ctc_logits = get_ctc_logits(audio)
         for example in ctc_logits:
-            beam_search_label = prefix_beam_search(example, lm_funct)
+            beam_search_label = prefix_beam_search(
+                example,
+                lm_funct,
+                alphabet=alphabet,
+                blank = tokenizer.pad_token,
+                space = ' ',
+            )
         ctc_label = tokenizer.decode(ctc_logits)
         return {
             'beam_search': beam_search_label,
