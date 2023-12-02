@@ -166,7 +166,8 @@ def decode_audio(
                 blank = tokenizer.pad_token,
                 space = ' ',
             )
-        ctc_label = tokenizer.decode(ctc_logits)
+        pred_ids = np.argmax(ctc_logits, axis=-1)
+        ctc_label = processor.batch_decode(pred_ids)
         return {
             'beam_search': beam_search_label,
             'ctc': ctc_label,
