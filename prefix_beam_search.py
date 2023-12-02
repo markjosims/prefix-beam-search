@@ -209,7 +209,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     out = decode_audio(args.WAV, args.ASR, args.LM)
     with open(args.OUT, 'w') as f:
-        json.dump(out, f)
+        json.dump(out, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == '__main__':
