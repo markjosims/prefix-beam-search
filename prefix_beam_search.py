@@ -97,10 +97,11 @@ def prefix_beam_search(
                 # END: STEP 4
 
                     # STEP 5: Extending with any other non-blank character and LM constraints
-                    else:#elif len(l.replace(space, '')) > 0 and c in (space, eos):
+                    elif len(l.replace(space, '')) > 0: # and c in (space, eos):
                     # comment out condition bc we don't want to only run lm on full words
                     # for a char-based model
-                        lm_prob = lm_memo[l_plus.strip(space+eos)] ** alpha
+                        stripped_prefix = l_plus.strip(space+eos)
+                        lm_prob = lm_memo[stripped_prefix] ** alpha if stripped_prefix else 1
                         Pnb[t][l_plus] += lm_prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
                     # else:
                     #     Pnb[t][l_plus] += ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
