@@ -3,10 +3,11 @@ from string import ascii_lowercase
 import re
 import numpy as np
 
-from typing import Dict, Sequence, Union, Optional, Any, List, Callable, Mapping
+from typing import Dict, Sequence, Union, Optional, Any, Callable, Mapping
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 from datasets import Dataset, Audio
 from evaluate import load
+from tqdm import tqdm
 import torch
 import json
 
@@ -69,7 +70,7 @@ def prefix_beam_search(
     # END: STEP 1
 
     # STEP 2: Iterations and pruning
-    for t in range(1, T):
+    for t in tqdm(range(1, T)):
         pruned_alphabet = {reverse_alphabet[i]: i for i in np.where(ctc[t] > prune)[0]}
         for l in A_prev:
             
