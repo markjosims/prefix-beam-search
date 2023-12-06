@@ -115,13 +115,14 @@ def prefix_beam_search(
                     # END: STEP 6
 
         # STEP 5b: batch calculate LM probability for prefixes
-        prefix_strs = [prefix['l_plus'].strip(space+eos) for prefix in prefixes_to_calc]
-        probs = lm(prefix_strs)
-        for prefix, prob in zip(prefixes_to_calc, probs):
-            lm_probs[prefix['l_plus'].strip(space+eos)] = prob
-            l_plus = prefix['l_plus']
-            c_ix = prefix['c_ix']
-            Pnb[t][l_plus] += prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
+        if prefixes_to_calc:
+            prefix_strs = [prefix['l_plus'].strip(space+eos) for prefix in prefixes_to_calc]
+            probs = lm(prefix_strs)
+            for prefix, prob in zip(prefixes_to_calc, probs):
+                lm_probs[prefix['l_plus'].strip(space+eos)] = prob
+                l_plus = prefix['l_plus']
+                c_ix = prefix['c_ix']
+                Pnb[t][l_plus] += prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
 
         # STEP 7: Select most probable prefixes
         A_next = Pb[t] + Pnb[t]
