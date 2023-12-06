@@ -3,7 +3,7 @@ from string import ascii_lowercase
 import re
 import numpy as np
 
-from typing import Dict, Sequence, Union, Optional, Any, Callable, Mapping
+from typing import Dict, Sequence, Union, Optional, Any, Callable, Mapping, List
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 from datasets import Dataset, Audio
 from evaluate import load
@@ -14,13 +14,6 @@ import json
 from argparse import ArgumentParser
 
 pplx = load('perplexity')
-
-class Memo(dict):
-    def __init__(self, factory):
-         self.factory = factory
-    def __missing__(self, key):
-         self[key] = self.factory(key)
-         return self[key]
 
 def prefix_beam_search(
         ctc: Sequence[Sequence[float]],
@@ -50,7 +43,7 @@ def prefix_beam_search(
     """
 
     lm = (lambda _: 1) if lm is None else lm # if no LM is provided, just set to function returning 1
-    lm_memo = Memo(lm)
+    lm_probs = dict()
     W = lambda l: re.findall(r'\w+[\s|>]', l)
     if not alphabet:
         alphabet = {c:i for i, c in enumerate(ascii_lowercase)}
@@ -72,6 +65,7 @@ def prefix_beam_search(
     # STEP 2: Iterations and pruning
     for t in tqdm(range(1, T)):
         pruned_alphabet = {reverse_alphabet[i]: i for i in np.where(ctc[t] > prune)[0]}
+        prefixes_to_calc: List[Dict[str, Any]] = []
         for l in A_prev:
             
             if len(l) > 0 and l[-1] == eos:
@@ -103,8 +97,15 @@ def prefix_beam_search(
                     # comment out condition bc we don't want to only run lm on full words
                     # for a char-based model
                         stripped_prefix = l_plus.strip(space+eos)
-                        lm_prob = lm_memo[stripped_prefix] ** alpha if stripped_prefix else 1
-                        Pnb[t][l_plus] += lm_prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
+                        if stripped_prefix in lm_probs:
+                            lm_prob = lm_probs[stripped_prefix] ** alpha
+                            Pnb[t][l_plus] += lm_prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
+                        else:
+                            prefixes_to_calc.append({
+                                'l_plus': l_plus,
+                                'l': l,
+                                'c_ix': c_ix,
+                            })
                     # else:
                     #     Pnb[t][l_plus] += ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
                     # END: STEP 5
@@ -114,6 +115,15 @@ def prefix_beam_search(
                         Pb[t][l_plus] += ctc[t][-1] * (Pb[t - 1][l_plus] + Pnb[t - 1][l_plus])
                         Pnb[t][l_plus] += ctc[t][c_ix] * Pnb[t - 1][l_plus]
                     # END: STEP 6
+
+        # STEP 5b: batch calculate LM probability for prefixes
+        prefix_strs = [prefix['l_plus'].strip(space+eos) for prefix in prefixes_to_calc]
+        probs = lm(prefix_strs)
+        for prefix, prob in zip(prefixes_to_calc, probs):
+            lm_probs[prefix['l_plus'].strip(space+eos)] = prob
+            l_plus = prefix['l_plus']
+            c_ix = prefix['c_ix']
+            Pnb[t][l_plus] += prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
 
         # STEP 7: Select most probable prefixes
         A_next = Pb[t] + Pnb[t]
@@ -142,7 +152,7 @@ def decode_audio(
     # print('Running ASR pipeline on audio file...')
     # ctc_out = pipe(file)
 
-    lm_funct = lambda s: 1/pplx.compute(predictions=[s,], model_id=lm)['mean_perplexity']
+    lm_funct = lambda prefs: 1/pplx.compute(predictions=prefs, model_id=lm)['perplexities']
     audio_ds = wav_to_hf_audio(file)
     print("Loading ASR model and processor...")
     processor = Wav2Vec2Processor.from_pretrained(asr)
