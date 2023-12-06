@@ -4,11 +4,10 @@ import re
 import numpy as np
 
 from typing import Dict, Sequence, Union, Optional, Any, List, Callable, Mapping
-from transformers import pipeline, Wav2Vec2Processor, Wav2Vec2ForCTC
+from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 from datasets import Dataset, Audio
 from evaluate import load
 import torch
-import sys
 import json
 
 from argparse import ArgumentParser
