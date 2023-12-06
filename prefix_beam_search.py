@@ -80,6 +80,8 @@ def prefix_beam_search(
                 continue  
 
             for c in pruned_alphabet:
+                if c!=blank:
+                    breakpoint()
                 c_ix = alphabet[c]
                 # END: STEP 2
                 
@@ -97,7 +99,7 @@ def prefix_beam_search(
                 # END: STEP 4
 
                     # STEP 5: Extending with any other non-blank character and LM constraints
-                    elif len(l.replace(space, '')) > 0: # and c in (space, eos):
+                    else: # elif len(l.replace(space, '')) > 0 and c in (space, eos):
                     # comment out condition bc we don't want to only run lm on full words
                     # for a char-based model
                         stripped_prefix = l_plus.strip(space+eos)
