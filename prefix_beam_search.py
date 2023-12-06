@@ -94,7 +94,7 @@ def prefix_beam_search(
                     else: # elif len(l.replace(space, '')) > 0 and c in (space, eos):
                     # comment out condition bc we don't want to only run lm on full words
                     # for a char-based model
-                        stripped_prefix = l_plus.strip(space+eos)
+                        stripped_prefix = l_plus.strip(eos)
                         if stripped_prefix in lm_probs:
                             lm_prob = lm_probs[stripped_prefix] ** alpha
                             Pnb[t][l_plus] += lm_prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
@@ -116,10 +116,10 @@ def prefix_beam_search(
 
         # STEP 5b: batch calculate LM probability for prefixes
         if prefixes_to_calc:
-            prefix_strs = [prefix['l_plus'].strip(space+eos) for prefix in prefixes_to_calc]
+            prefix_strs = [prefix['l_plus'].strip(eos) for prefix in prefixes_to_calc]
             probs = lm(prefix_strs)
             for prefix, prob in zip(prefixes_to_calc, probs):
-                lm_probs[prefix['l_plus'].strip(space+eos)] = prob
+                lm_probs[prefix['l_plus'].strip(eos)] = prob
                 l_plus = prefix['l_plus']
                 c_ix = prefix['c_ix']
                 Pnb[t][l_plus] += prob * ctc[t][c_ix] * (Pb[t - 1][l] + Pnb[t - 1][l])
