@@ -74,8 +74,6 @@ def prefix_beam_search(
                 continue  
 
             for c in pruned_alphabet:
-                if c!=blank:
-                    breakpoint()
                 c_ix = alphabet[c]
                 # END: STEP 2
                 
