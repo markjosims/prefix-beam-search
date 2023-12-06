@@ -142,7 +142,7 @@ def decode_audio(
     # print('Running ASR pipeline on audio file...')
     # ctc_out = pipe(file)
 
-    lm_funct = lambda s: pplx.compute(predictions=[s,], model_id=lm)['mean_perplexity']
+    lm_funct = lambda s: 1/pplx.compute(predictions=[s,], model_id=lm)['mean_perplexity']
     audio_ds = wav_to_hf_audio(file)
     print("Loading ASR model and processor...")
     processor = Wav2Vec2Processor.from_pretrained(asr)
